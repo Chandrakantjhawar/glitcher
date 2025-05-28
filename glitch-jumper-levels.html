@@ -1,0 +1,2348 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Glitch Jumper - Levels Edition</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.js"></script>
+  <style>
+    /* Enhanced responsive design */
+    .audio-controls {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+      color: white;
+      font-size: clamp(10px, 2vw, 14px);
+    }
+
+    .audio-controls button {
+      background: rgba(51, 51, 51, 0.8);
+      color: white;
+      border: 1px solid #555;
+      padding: clamp(4px, 1vw, 8px) clamp(6px, 1.5vw, 12px);
+      margin: 2px;
+      cursor: pointer;
+      border-radius: 5px;
+      font-size: clamp(10px, 2vw, 14px);
+      touch-action: manipulation;
+      min-width: 44px;
+      min-height: 44px;
+    }
+
+    .audio-controls input[type="range"] {
+      width: clamp(60px, 15vw, 100px);
+      margin: 0 5px;
+      min-height: 44px;
+    }
+
+    /* Enhanced mobile controls */
+    .mobile-controls {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: clamp(80px, 20vh, 150px);
+      z-index: 1000;
+      display: none;
+      pointer-events: none;
+    }
+
+    .mobile-controls.active {
+      display: block;
+      pointer-events: auto;
+    }
+
+    .control-button {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      touch-action: manipulation;
+      user-select: none;
+      transition: all 0.1s ease;
+      min-width: 44px;
+      min-height: 44px;
+    }
+
+    .control-button:active,
+    .control-button.pressed {
+      background: rgba(255, 255, 255, 0.3);
+      border-color: rgba(255, 255, 255, 0.6);
+      transform: scale(0.95);
+    }
+
+    .left-btn {
+      bottom: clamp(15px, 4vh, 25px);
+      left: clamp(15px, 4vw, 25px);
+    }
+
+    .right-btn {
+      bottom: clamp(15px, 4vh, 25px);
+      left: clamp(95px, 20vw, 120px);
+    }
+
+    .jump-btn {
+      bottom: clamp(15px, 4vh, 25px);
+      right: clamp(15px, 4vw, 25px);
+    }
+
+    .start-btn {
+      position: absolute;
+      bottom: 50%;
+      left: 50%;
+      transform: translate(-50%, 50%);
+      background: rgba(0, 255, 0, 0.2);
+      border: 2px solid rgba(0, 255, 0, 0.5);
+      border-radius: 10px;
+      color: #00ff00;
+      display: none;
+      min-width: 100px;
+      min-height: 50px;
+    }
+
+    .start-btn.active {
+      display: flex;
+    }
+
+    /* Responsive breakpoints */
+    @media (max-width: 480px) {
+      .audio-controls {
+        top: 5px;
+        right: 5px;
+        font-size: 10px;
+      }
+      
+      .audio-controls button {
+        padding: 4px 6px;
+        font-size: 10px;
+        min-width: 40px;
+        min-height: 40px;
+      }
+      
+      .audio-controls input[type="range"] {
+        width: 50px;
+      }
+    }
+
+    @media (min-width: 481px) and (max-width: 768px) {
+      .audio-controls {
+        font-size: 12px;
+      }
+      
+      .audio-controls button {
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+      
+      .audio-controls input[type="range"] {
+        width: 70px;
+      }
+    }
+
+    @media (min-width: 769px) and (max-width: 1024px) {
+      .audio-controls {
+        font-size: 13px;
+      }
+      
+      .audio-controls button {
+        padding: 7px 10px;
+        font-size: 13px;
+      }
+      
+      .audio-controls input[type="range"] {
+        width: 80px;
+      }
+    }
+
+    @media (min-width: 1025px) {
+      .audio-controls {
+        font-size: 14px;
+      }
+      
+      .audio-controls button {
+        padding: 8px 12px;
+        font-size: 14px;
+      }
+      
+      .audio-controls input[type="range"] {
+        width: 100px;
+      }
+    }
+
+    /* Orientation handling */
+    .orientation-message {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #000;
+      color: white;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .orientation-message.show {
+      display: flex;
+    }
+
+    .rotate-icon {
+      font-size: clamp(32px, 8vw, 64px);
+      margin-bottom: 20px;
+      animation: rotate 2s linear infinite;
+    }
+
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* High DPI display support */
+    @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+      canvas {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+      }
+    }
+    
+    * {
+      box-sizing: border-box;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -khtml-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      touch-action: none;
+    }
+    
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    canvas {
+      display: block;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div class="audio-controls">
+      <button id="muteBtn">🔊</button>
+      <span id="volumeLabel">70%</span>
+      <input type="range" id="volumeSlider" min="0" max="100" value="70">
+    </div>
+
+    <div class="mobile-controls" id="mobileControls">
+      <div class="control-button left-btn" id="leftBtn">←</div>
+      <div class="control-button right-btn" id="rightBtn">→</div>
+      <div class="control-button jump-btn" id="jumpBtn">↑</div>
+      <div class="control-button start-btn" id="startBtn">START</div>
+    </div>
+
+    <div class="orientation-message" id="orientationMessage">
+      <div class="rotate-icon">📱</div>
+      <h2>Please rotate your device</h2>
+      <p>This game works best in landscape mode</p>
+    </div>
+  </div>
+
+  <script>
+    // Game progress and save system
+    class GameProgress {
+      constructor() {
+        this.currentLevel = 1;
+        this.maxLevelUnlocked = 1;
+        this.highScores = {};
+        this.loadProgress();
+      }
+      
+      loadProgress() {
+        try {
+          const savedData = localStorage.getItem('glitchJumperProgress');
+          if (savedData) {
+            const data = JSON.parse(savedData);
+            this.currentLevel = data.currentLevel || 1;
+            this.maxLevelUnlocked = data.maxLevelUnlocked || 1;
+            this.highScores = data.highScores || {};
+          }
+        } catch (e) {
+          console.error('Error loading game progress:', e);
+        }
+      }
+      
+      saveProgress() {
+        try {
+          const data = {
+            currentLevel: this.currentLevel,
+            maxLevelUnlocked: this.maxLevelUnlocked,
+            highScores: this.highScores
+          };
+          localStorage.setItem('glitchJumperProgress', JSON.stringify(data));
+        } catch (e) {
+          console.error('Error saving game progress:', e);
+        }
+      }
+      
+      setLevel(level) {
+        this.currentLevel = level;
+        this.saveProgress();
+      }
+      
+      unlockLevel(level) {
+        if (level > this.maxLevelUnlocked) {
+          this.maxLevelUnlocked = level;
+          this.saveProgress();
+          return true; // Newly unlocked
+        }
+        return false; // Already unlocked
+      }
+      
+      setHighScore(level, score) {
+        if (!this.highScores[level] || score > this.highScores[level]) {
+          this.highScores[level] = score;
+          this.saveProgress();
+          return true; // New high score
+        }
+        return false; // Not a new high score
+      }
+      
+      getHighScore(level) {
+        return this.highScores[level] || 0;
+      }
+    }
+
+    // Level definitions
+    const LEVELS = [
+      // Level 1 - Tutorial
+      {
+        name: "Glitch Basics",
+        description: "Learn the basics of glitch jumping",
+        platformCount: 15,
+        platformSpacing: 100,
+        platformSizeMultiplier: 1.0,
+        glitchFrequencyMin: 3000,
+        glitchFrequencyMax: 4000,
+        powerupFrequency: 10000,
+        powerupTypes: ['DOUBLE_JUMP', 'SPEED_BOOST'],
+        gravity: 600,
+        jumpForce: 450,
+        goalHeight: 1400,
+        backgroundColor: 0x001100,
+        platformColor: 0x00ff00,
+        backgroundLines: 0x00ff00
+      },
+      // Level 2 - Getting Harder
+      {
+        name: "Unstable Platforms",
+        description: "Platforms are becoming more unstable",
+        platformCount: 18,
+        platformSpacing: 110,
+        platformSizeMultiplier: 0.9,
+        glitchFrequencyMin: 2500,
+        glitchFrequencyMax: 3500,
+        powerupFrequency: 8000,
+        powerupTypes: ['DOUBLE_JUMP', 'SPEED_BOOST', 'STABILITY'],
+        gravity: 620,
+        jumpForce: 460,
+        goalHeight: 1800,
+        backgroundColor: 0x000033,
+        platformColor: 0x00aaff,
+        backgroundLines: 0x0066ff
+      },
+      // Level 3 - Challenge Begins
+      {
+        name: "Quantum Flux",
+        description: "Platforms are further apart and less stable",
+        platformCount: 20,
+        platformSpacing: 130,
+        platformSizeMultiplier: 0.8,
+        glitchFrequencyMin: 2000,
+        glitchFrequencyMax: 3000,
+        powerupFrequency: 7000,
+        powerupTypes: ['DOUBLE_JUMP', 'SPEED_BOOST', 'STABILITY', 'SUPER_JUMP'],
+        gravity: 640,
+        jumpForce: 470,
+        goalHeight: 2200,
+        backgroundColor: 0x330033,
+        platformColor: 0xff00ff,
+        backgroundLines: 0xaa00aa
+      },
+      // Level 4 - Hard
+      {
+        name: "Temporal Distortion",
+        description: "Time is unstable, platforms glitch rapidly",
+        platformCount: 22,
+        platformSpacing: 140,
+        platformSizeMultiplier: 0.7,
+        glitchFrequencyMin: 1500,
+        glitchFrequencyMax: 2500,
+        powerupFrequency: 6000,
+        powerupTypes: ['DOUBLE_JUMP', 'SPEED_BOOST', 'STABILITY', 'SUPER_JUMP', 'SLOW_MOTION'],
+        gravity: 660,
+        jumpForce: 480,
+        goalHeight: 2600,
+        backgroundColor: 0x331100,
+        platformColor: 0xff6600,
+        backgroundLines: 0xaa4400
+      },
+      // Level 5 - Very Hard
+      {
+        name: "Reality Breakdown",
+        description: "Reality is breaking down, extreme instability",
+        platformCount: 25,
+        platformSpacing: 150,
+        platformSizeMultiplier: 0.6,
+        glitchFrequencyMin: 1000,
+        glitchFrequencyMax: 2000,
+        powerupFrequency: 5000,
+        powerupTypes: ['DOUBLE_JUMP', 'SPEED_BOOST', 'STABILITY', 'SUPER_JUMP', 'SLOW_MOTION'],
+        gravity: 680,
+        jumpForce: 490,
+        goalHeight: 3000,
+        backgroundColor: 0x330000,
+        platformColor: 0xff0000,
+        backgroundLines: 0xaa0000
+      }
+    ];
+
+    // Enhanced device detection and responsive utilities
+    class DeviceUtils {
+      static getDeviceType() {
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isMobile = /android|webos|iphone|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+        const isTablet = /ipad|android(?!.*mobile)|tablet/i.test(userAgent);
+        const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
+        
+        // Enhanced device detection
+        if (isMobile && screenWidth < 768) {
+          return { type: 'mobile', hasTouch: true, preferTouch: true };
+        } else if (isTablet || (hasTouch && screenWidth >= 768 && screenWidth <= 1024)) {
+          return { type: 'tablet', hasTouch: true, preferTouch: true };
+        } else if (hasTouch && screenWidth > 1024) {
+          return { type: 'desktop-touch', hasTouch: true, preferTouch: false };
+        } else {
+          return { type: 'desktop', hasTouch: false, preferTouch: false };
+        }
+      }
+      
+      static isLandscape() {
+        return window.innerWidth > window.innerHeight;
+      }
+      
+      static getOptimalSize() {
+        const device = this.getDeviceType();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        // Base aspect ratio (4:3 for better compatibility)
+        const baseAspectRatio = 4 / 3;
+        
+        // Calculate optimal size based on device type
+        let maxWidth, maxHeight;
+        
+        switch (device.type) {
+          case 'mobile':
+            // Mobile: Use most of the screen but leave room for UI
+            maxWidth = Math.min(viewportWidth * 0.95, 600);
+            maxHeight = Math.min(viewportHeight * 0.85, 450);
+            break;
+          case 'tablet':
+            // Tablet: Larger game area
+            maxWidth = Math.min(viewportWidth * 0.9, 800);
+            maxHeight = Math.min(viewportHeight * 0.8, 600);
+            break;
+          case 'desktop-touch':
+          case 'desktop':
+            // Desktop: Maximum size with reasonable limits
+            maxWidth = Math.min(viewportWidth * 0.85, 1000);
+            maxHeight = Math.min(viewportHeight * 0.85, 750);
+            break;
+        }
+        
+        // Maintain aspect ratio while fitting in viewport
+        let width = maxWidth;
+        let height = maxHeight;
+        
+        if (width / height > baseAspectRatio) {
+          width = height * baseAspectRatio;
+        } else {
+          height = width / baseAspectRatio;
+        }
+        
+        // Ensure minimum playable size
+        const minWidth = device.type === 'mobile' ? 280 : 400;
+        const minHeight = device.type === 'mobile' ? 210 : 300;
+        
+        width = Math.max(width, minWidth);
+        height = Math.max(height, minHeight);
+        
+        // Final viewport check
+        if (width > viewportWidth * 0.95) {
+          width = viewportWidth * 0.95;
+          height = width / baseAspectRatio;
+        }
+        
+        if (height > viewportHeight * 0.9) {
+          height = viewportHeight * 0.9;
+          width = height * baseAspectRatio;
+        }
+        
+        return { 
+          width: Math.floor(width), 
+          height: Math.floor(height),
+          device: device
+        };
+      }
+      
+      static getScaleFactor() {
+        const size = this.getOptimalSize();
+        const baseWidth = 800; // Reference width for scaling
+        return size.width / baseWidth;
+      }
+      
+      static getResponsiveFontSize(baseSize) {
+        const scaleFactor = this.getScaleFactor();
+        const device = this.getDeviceType();
+        
+        // Adjust font scaling based on device type
+        let fontScale = scaleFactor;
+        if (device.type === 'mobile') {
+          fontScale = Math.max(scaleFactor, 0.8); // Ensure readability on mobile
+        } else if (device.type === 'tablet') {
+          fontScale = Math.max(scaleFactor, 0.9);
+        }
+        
+        return Math.max(Math.floor(baseSize * fontScale), 12); // Minimum 12px
+      }
+      
+      static getResponsiveButtonSize(baseWidth, baseHeight) {
+        const scaleFactor = this.getScaleFactor();
+        const device = this.getDeviceType();
+        
+        let scale = scaleFactor;
+        if (device.hasTouch) {
+          scale = Math.max(scale, 0.8); // Ensure touch targets are large enough
+        }
+        
+        return {
+          width: Math.max(Math.floor(baseWidth * scale), device.hasTouch ? 44 : 30),
+          height: Math.max(Math.floor(baseHeight * scale), device.hasTouch ? 44 : 30)
+        };
+      }
+    }
+
+    // Enhanced touch controls manager
+    class TouchControls {
+      constructor() {
+        this.leftPressed = false;
+        this.rightPressed = false;
+        this.jumpPressed = false;
+        this.startPressed = false;
+        this.device = DeviceUtils.getDeviceType();
+        
+        this.setupControls();
+        this.updateControlsVisibility();
+      }
+
+      setupControls() {
+        const leftBtn = document.getElementById('leftBtn');
+        const rightBtn = document.getElementById('rightBtn');
+        const jumpBtn = document.getElementById('jumpBtn');
+        const startBtn = document.getElementById('startBtn');
+
+        // Left button
+        this.addTouchEvents(leftBtn, () => {
+          this.leftPressed = true;
+          leftBtn.classList.add('pressed');
+        }, () => {
+          this.leftPressed = false;
+          leftBtn.classList.remove('pressed');
+        });
+
+        // Right button
+        this.addTouchEvents(rightBtn, () => {
+          this.rightPressed = true;
+          rightBtn.classList.add('pressed');
+        }, () => {
+          this.rightPressed = false;
+          rightBtn.classList.remove('pressed');
+        });
+
+        // Jump button
+        this.addTouchEvents(jumpBtn, () => {
+          this.jumpPressed = true;
+          jumpBtn.classList.add('pressed');
+        }, () => {
+          this.jumpPressed = false;
+          jumpBtn.classList.remove('pressed');
+        });
+
+        // Start button
+        this.addTouchEvents(startBtn, () => {
+          this.startPressed = true;
+          startBtn.classList.add('pressed');
+        }, () => {
+          this.startPressed = false;
+          startBtn.classList.remove('pressed');
+        });
+        
+        // Update control sizes based on device
+        this.updateControlSizes();
+      }
+      
+      updateControlSizes() {
+        const device = DeviceUtils.getDeviceType();
+        const scaleFactor = DeviceUtils.getScaleFactor();
+        
+        // Base sizes
+        const baseMoveButtonSize = 60;
+        const baseJumpButtonSize = 80;
+        const baseStartButtonWidth = 120;
+        const baseStartButtonHeight = 60;
+        
+        // Calculate responsive sizes
+        const moveButtonSize = Math.max(baseMoveButtonSize * scaleFactor, device.hasTouch ? 50 : 40);
+        const jumpButtonSize = Math.max(baseJumpButtonSize * scaleFactor, device.hasTouch ? 70 : 60);
+        const startButtonWidth = Math.max(baseStartButtonWidth * scaleFactor, device.hasTouch ? 100 : 80);
+        const startButtonHeight = Math.max(baseStartButtonHeight * scaleFactor, device.hasTouch ? 50 : 40);
+        
+        // Apply sizes
+        const leftBtn = document.getElementById('leftBtn');
+        const rightBtn = document.getElementById('rightBtn');
+        const jumpBtn = document.getElementById('jumpBtn');
+        const startBtn = document.getElementById('startBtn');
+        
+        if (leftBtn) {
+          leftBtn.style.width = moveButtonSize + 'px';
+          leftBtn.style.height = moveButtonSize + 'px';
+          leftBtn.style.fontSize = Math.max(24 * scaleFactor, 18) + 'px';
+        }
+        
+        if (rightBtn) {
+          rightBtn.style.width = moveButtonSize + 'px';
+          rightBtn.style.height = moveButtonSize + 'px';
+          rightBtn.style.fontSize = Math.max(24 * scaleFactor, 18) + 'px';
+          rightBtn.style.left = (20 + moveButtonSize + 20) + 'px';
+        }
+        
+        if (jumpBtn) {
+          jumpBtn.style.width = jumpButtonSize + 'px';
+          jumpBtn.style.height = jumpButtonSize + 'px';
+          jumpBtn.style.fontSize = Math.max(32 * scaleFactor, 24) + 'px';
+        }
+        
+        if (startBtn) {
+          startBtn.style.width = startButtonWidth + 'px';
+          startBtn.style.height = startButtonHeight + 'px';
+          startBtn.style.fontSize = Math.max(18 * scaleFactor, 14) + 'px';
+        }
+        
+        // Update mobile controls container height
+        const mobileControls = document.getElementById('mobileControls');
+        if (mobileControls) {
+          const controlsHeight = Math.max(120 * scaleFactor, 80);
+          mobileControls.style.height = controlsHeight + 'px';
+        }
+      }
+      
+      updateControlsVisibility() {
+        const device = DeviceUtils.getDeviceType();
+        const mobileControls = document.getElementById('mobileControls');
+        
+        // Show controls if device has touch capability or is mobile/tablet
+        if (device.hasTouch || device.type === 'mobile' || device.type === 'tablet') {
+          this.showControls();
+        } else {
+          this.hideControls();
+        }
+      }
+
+      addTouchEvents(element, onStart, onEnd) {
+        if (!element) return;
+        
+        // Touch events
+        element.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          onStart();
+        }, { passive: false });
+
+        element.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          onEnd();
+        }, { passive: false });
+
+        element.addEventListener('touchcancel', (e) => {
+          e.preventDefault();
+          onEnd();
+        }, { passive: false });
+
+        // Mouse events for desktop and hybrid devices
+        element.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          onStart();
+        });
+
+        element.addEventListener('mouseup', (e) => {
+          e.preventDefault();
+          onEnd();
+        });
+
+        element.addEventListener('mouseleave', (e) => {
+          e.preventDefault();
+          onEnd();
+        });
+        
+        // Pointer events for better cross-device support
+        element.addEventListener('pointerdown', (e) => {
+          if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+            e.preventDefault();
+            onStart();
+          }
+        });
+
+        element.addEventListener('pointerup', (e) => {
+          if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+            e.preventDefault();
+            onEnd();
+          }
+        });
+      }
+
+      showControls() {
+        const mobileControls = document.getElementById('mobileControls');
+        if (mobileControls) {
+          mobileControls.classList.add('active');
+        }
+      }
+
+      hideControls() {
+        const mobileControls = document.getElementById('mobileControls');
+        if (mobileControls) {
+          mobileControls.classList.remove('active');
+        }
+      }
+
+      showStartButton() {
+        const startBtn = document.getElementById('startBtn');
+        if (startBtn) {
+          startBtn.classList.add('active');
+        }
+      }
+
+      hideStartButton() {
+        const startBtn = document.getElementById('startBtn');
+        if (startBtn) {
+          startBtn.classList.remove('active');
+        }
+      }
+      
+      updateForResize() {
+        this.device = DeviceUtils.getDeviceType();
+        this.updateControlSizes();
+        this.updateControlsVisibility();
+      }
+    }
+
+    // Update the global instances section:
+    let touchControls = null;
+    let gameInstance = null;
+    const gameProgress = new GameProgress();
+
+    // Audio manager
+    class AudioManager {
+      constructor() {
+        this.masterVolume = 0.7;
+        this.isMuted = false;
+        this.sounds = {};
+      }
+
+      setMasterVolume(volume) {
+        this.masterVolume = volume;
+        Object.values(this.sounds).forEach(sound => {
+          if (sound && sound.setVolume) {
+            sound.setVolume(volume);
+          }
+        });
+      }
+
+      toggleMute() {
+        this.isMuted = !this.isMuted;
+        Object.values(this.sounds).forEach(sound => {
+          if (sound && sound.setMute) {
+            sound.setMute(this.isMuted);
+          }
+        });
+        return this.isMuted;
+      }
+
+      addSound(key, sound) {
+        this.sounds[key] = sound;
+        if (sound && sound.setVolume) {
+          sound.setVolume(this.masterVolume);
+        }
+        if (sound && sound.setMute) {
+          sound.setMute(this.isMuted);
+        }
+      }
+    }
+
+    const audioManager = new AudioManager();
+
+    // Power-up definitions
+    const POWERUPS = {
+      DOUBLE_JUMP: {
+        key: 'doubleJump',
+        color: 0xff0000, // Red
+        name: 'Double Jump',
+        description: 'Jump again in mid-air',
+        duration: 10000, // 10 seconds
+        icon: '↑↑'
+      },
+      SLOW_MOTION: {
+        key: 'slowMotion',
+        color: 0x0000ff, // Blue
+        name: 'Slow Motion',
+        description: 'Slows down platform glitching',
+        duration: 8000, // 8 seconds
+        icon: '⏱️'
+      },
+      STABILITY: {
+        key: 'stability',
+        color: 0xffff00, // Yellow
+        name: 'Platform Stability',
+        description: 'Prevents platforms from disappearing',
+        duration: 6000, // 6 seconds
+        icon: '🛡️'
+      },
+      SPEED_BOOST: {
+        key: 'speedBoost',
+        color: 0x00ff00, // Green
+        name: 'Speed Boost',
+        description: 'Move faster horizontally',
+        duration: 7000, // 7 seconds
+        icon: '⚡'
+      },
+      SUPER_JUMP: {
+        key: 'superJump',
+        color: 0xff00ff, // Magenta
+        name: 'Super Jump',
+        description: 'Jump much higher',
+        duration: 8000, // 8 seconds
+        icon: '🚀'
+      }
+    };
+
+    class MainMenuScene extends Phaser.Scene {
+      constructor() {
+        super({ key: 'MainMenuScene' });
+      }
+
+      preload() {
+        this.load.image('player', 'https://labs.phaser.io/assets/sprites/phaser-dude.png');
+        this.load.image('platform', 'https://labs.phaser.io/assets/sprites/platform.png');
+
+        // Load audio files
+        this.load.audio('jump', this.generateJumpSound());
+        this.load.audio('glitch', this.generateGlitchSound());
+        this.load.audio('bgMusic', this.generateBackgroundMusic());
+        this.load.audio('menuSelect', this.generateMenuSound());
+        this.load.audio('levelComplete', this.generateLevelCompleteSound());
+        
+        // Power-up sounds
+        this.load.audio('powerupCollect', this.generatePowerupCollectSound());
+        this.load.audio('powerupActivate', this.generatePowerupActivateSound());
+        this.load.audio('powerupExpire', this.generatePowerupExpireSound());
+      }
+
+      create() {
+        const { width, height } = this.sys.game.config;
+        
+        this.menuSelectSound = this.sound.add('menuSelect', { volume: 0.5 });
+        audioManager.addSound('menuSelect', this.menuSelectSound);
+
+        // Title
+        const titleSize = DeviceUtils.getResponsiveFontSize(40);
+        this.add.text(width / 2, height / 6, 'GLITCH JUMPER', { 
+          fontSize: titleSize + 'px', 
+          fill: '#0f0',
+          fontStyle: 'bold',
+          stroke: '#000',
+          strokeThickness: 6
+        }).setOrigin(0.5);
+        
+        const subtitleSize = DeviceUtils.getResponsiveFontSize(24);
+        this.add.text(width / 2, height / 6 + 40, 'LEVELS EDITION', { 
+          fontSize: subtitleSize + 'px', 
+          fill: '#fff' 
+        }).setOrigin(0.5);
+        
+        // Create level selection buttons
+        this.createLevelButtons(width, height);
+        
+        // Instructions
+        const instructionSize = DeviceUtils.getResponsiveFontSize(16);
+        this.add.text(width / 2, height - 60, 'Select a level to play', { 
+          fontSize: instructionSize + 'px', 
+          fill: '#aaa' 
+        }).setOrigin(0.5);
+        
+        
+      }
+      
+      createLevelButtons(width, height) {
+        const buttonWidth = Math.min(200, width * 0.7);
+        const buttonHeight = 60;
+        const buttonSpacing = 20;
+        const totalHeight = (buttonHeight + buttonSpacing) * LEVELS.length;
+        let startY = height / 2 - totalHeight / 2;
+        
+        for (let i = 0; i < LEVELS.length; i++) {
+          const level = LEVELS[i];
+          const isUnlocked = i + 1 <= gameProgress.maxLevelUnlocked;
+          
+          // Button background
+          const buttonColor = isUnlocked ? level.platformColor : 0x444444;
+          const buttonY = startY + i * (buttonHeight + buttonSpacing);
+          
+          const button = this.add.rectangle(width / 2, buttonY, buttonWidth, buttonHeight, buttonColor, 0.7)
+            .setInteractive({ useHandCursor: true });
+          
+          // Level name
+          const levelText = this.add.text(width / 2, buttonY - 10, level.name, { 
+            fontSize: '18px', 
+            fill: isUnlocked ? '#fff' : '#888'
+          }).setOrigin(0.5);
+          
+          // Level description
+          const descText = this.add.text(width / 2, buttonY + 15, isUnlocked ? level.description : 'Locked', { 
+            fontSize: '12px', 
+            fill: isUnlocked ? '#ddd' : '#888'
+          }).setOrigin(0.5);
+          
+          // High score
+          const highScore = gameProgress.getHighScore(i + 1);
+          if (highScore > 0 && isUnlocked) {
+            this.add.text(width / 2 + buttonWidth / 2 - 10, buttonY, 'Best: ' + highScore, { 
+              fontSize: '12px', 
+              fill: '#0f0'
+            }).setOrigin(1, 0.5);
+          }
+          
+          // Lock icon for locked levels
+          if (!isUnlocked) {
+            this.add.text(width / 2 - buttonWidth / 2 + 20, buttonY, '🔒', { 
+              fontSize: '16px', 
+              fill: '#888'
+            }).setOrigin(0.5);
+          }
+          
+          if (isUnlocked) {
+            button.on('pointerdown', () => {
+              this.menuSelectSound.play();
+              gameProgress.setLevel(i + 1);
+              this.scene.start('LevelIntroScene');
+            });
+            
+            // Hover effect
+            button.on('pointerover', () => {
+              button.setFillStyle(buttonColor, 0.9);
+              levelText.setFill('#fff');
+              descText.setFill('#fff');
+            });
+            
+            button.on('pointerout', () => {
+              button.setFillStyle(buttonColor, 0.7);
+              levelText.setFill('#fff');
+              descText.setFill('#ddd');
+            });
+          }
+        }
+      }
+
+      // Audio generation methods (same as before)
+      generateJumpSound() {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const sampleRate = audioContext.sampleRate;
+        const duration = 0.3;
+        const frameCount = sampleRate * duration;
+        const arrayBuffer = audioContext.createBuffer(1, frameCount, sampleRate);
+        const channelData = arrayBuffer.getChannelData(0);
+
+        for (let i = 0; i < frameCount; i++) {
+          const t = i / sampleRate;
+          const frequency = 440 * Math.pow(2, -t * 2);
+          channelData[i] = Math.sin(2 * Math.PI * frequency * t) * Math.exp(-t * 3) * 0.3;
+        }
+
+        return this.bufferToDataURL(arrayBuffer, sampleRate);
+      }
+
+      generateGlitchSound() {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const sampleRate = audioContext.sampleRate;
+        const duration = 0.5;
+        const frameCount = sampleRate * duration;
+        const arrayBuffer = audioContext.createBuffer(1, frameCount, sampleRate);
+        const channelData = arrayBuffer.getChannelData(0);
+
+        for (let i = 0; i < frameCount; i++) {
+          const t = i / sampleRate;
+          const noise = (Math.random() - 0.5) * 2;
+          const glitch = Math.sin(2 * Math.PI * 200 * t + noise * 10) * Math.exp(-t * 2);
+          channelData[i] = glitch * 0.2;
+        }
+
+        return this.bufferToDataURL(arrayBuffer, sampleRate);
+      }
+
+      generateBackgroundMusic() {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const sampleRate = audioContext.sampleRate;
+        const duration = 8;
+        const frameCount = sampleRate * duration;
+        const arrayBuffer = audioContext.createBuffer(1, frameCount, sampleRate);
+        const channelData = arrayBuffer.getChannelData(0);
+
+        const notes = [220, 246.94, 261.63, 293.66];
+        
+        for (let i = 0; i < frameCount; i++) {
+          const t = i / sampleRate;
+          const noteIndex = Math.floor(t * 2) % notes.length;
+          const frequency = notes[noteIndex];
+          
+          const wave1 = Math.sin(2 * Math.PI * frequency * t) * 0.1;
+          const wave2 = Math.sin(2 * Math.PI * frequency * 1.5 * t) * 0.05;
+          const envelope = Math.sin(2 * Math.PI * t / duration) * 0.5 + 0.5;
+          
+          channelData[i] = (wave1 + wave2) * envelope * 0.3;
+        }
+
+        return this.bufferToDataURL(arrayBuffer, sampleRate);
+      }
+
+      generateMenuSound() {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const sampleRate = audioContext.sampleRate;
+        const duration = 0.2;
+        const frameCount = sampleRate * duration;
+        const arrayBuffer = audioContext.createBuffer(1, frameCount, sampleRate);
+        const channelData = arrayBuffer.getChannelData(0);
+
+        for (let i = 0; i < frameCount; i++) {
+          const t = i / sampleRate;
+          const frequency = 800;
+          channelData[i] = Math.sin(2 * Math.PI * frequency * t) * Math.exp(-t * 5) * 0.2;
+        }
+
+        return this.bufferToDataURL(arrayBuffer, sampleRate);
+      }
+      
+      generateLevelCompleteSound() {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const sampleRate = audioContext.sampleRate;
+        const duration = 1.5;
+        const frameCount = sampleRate * duration;
+        const arrayBuffer = audioContext.createBuffer(1, frameCount, sampleRate);
+        const channelData = arrayBuffer.getChannelData(0);
+
+        // Triumphant fanfare
+        const notes = [
+          { freq: 440, dur: 0.2 },   // A4
+          { freq: 554.37, dur: 0.2 }, // C#5
+          { freq: 659.25, dur: 0.3 }, // E5
+          { freq: 880, dur: 0.8 }     // A5
+        ];
+        
+        let time = 0;
+        for (const note of notes) {
+          const startSample = Math.floor(time * sampleRate);
+          const endSample = Math.floor((time + note.dur) * sampleRate);
+          
+          for (let i = startSample; i < endSample && i < frameCount; i++) {
+            const t = (i - startSample) / sampleRate;
+            const amplitude = Math.exp(-t / note.dur * 2) * 0.3;
+            channelData[i] = Math.sin(2 * Math.PI * note.freq * t) * amplitude;
+          }
+          
+          time += note.dur;
+        }
+
+        return this.bufferToDataURL(arrayBuffer, sampleRate);
+      }
+      
+      generatePowerupCollectSound() {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const sampleRate = audioContext.sampleRate;
+        const duration = 0.3;
+        const frameCount = sampleRate * duration;
+        const arrayBuffer = audioContext.createBuffer(1, frameCount, sampleRate);
+        const channelData = arrayBuffer.getChannelData(0);
+
+        for (let i = 0; i < frameCount; i++) {
+          const t = i / sampleRate;
+          // Rising pitch effect
+          const frequency = 300 + t * 1200;
+          channelData[i] = Math.sin(2 * Math.PI * frequency * t) * Math.exp(-t * 2) * 0.3;
+        }
+
+        return this.bufferToDataURL(arrayBuffer, sampleRate);
+      }
+      
+      generatePowerupActivateSound() {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const sampleRate = audioContext.sampleRate;
+        const duration = 0.4;
+        const frameCount = sampleRate * duration;
+        const arrayBuffer = audioContext.createBuffer(1, frameCount, sampleRate);
+        const channelData = arrayBuffer.getChannelData(0);
+
+        for (let i = 0; i < frameCount; i++) {
+          const t = i / sampleRate;
+          // Chord-like sound
+          const f1 = 440;
+          const f2 = 554.37;
+          const f3 = 659.25;
+          const wave = (
+            Math.sin(2 * Math.PI * f1 * t) + 
+            Math.sin(2 * Math.PI * f2 * t) * 0.7 + 
+            Math.sin(2 * Math.PI * f3 * t) * 0.5
+          ) / 2.2;
+          
+          channelData[i] = wave * Math.exp(-t * 3) * 0.3;
+        }
+
+        return this.bufferToDataURL(arrayBuffer, sampleRate);
+      }
+      
+      generatePowerupExpireSound() {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const sampleRate = audioContext.sampleRate;
+        const duration = 0.5;
+        const frameCount = sampleRate * duration;
+        const arrayBuffer = audioContext.createBuffer(1, frameCount, sampleRate);
+        const channelData = arrayBuffer.getChannelData(0);
+
+        for (let i = 0; i < frameCount; i++) {
+          const t = i / sampleRate;
+          // Descending pitch effect
+          const frequency = 600 - t * 400;
+          channelData[i] = Math.sin(2 * Math.PI * frequency * t) * Math.exp(-t * 2) * 0.2;
+        }
+
+        return this.bufferToDataURL(arrayBuffer, sampleRate);
+      }
+
+      bufferToDataURL(buffer, sampleRate) {
+        const length = buffer.length;
+        const arrayBuffer = new ArrayBuffer(44 + length * 2);
+        const view = new DataView(arrayBuffer);
+        const channelData = buffer.getChannelData(0);
+
+        const writeString = (offset, string) => {
+          for (let i = 0; i < string.length; i++) {
+            view.setUint8(offset + i, string.charCodeAt(i));
+          }
+        };
+
+        writeString(0, 'RIFF');
+        view.setUint32(4, 36 + length * 2, true);
+        writeString(8, 'WAVE');
+        writeString(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        writeString(36, 'data');
+        view.setUint32(40, length * 2, true);
+
+        let offset = 44;
+        for (let i = 0; i < length; i++) {
+          const sample = Math.max(-1, Math.min(1, channelData[i]));
+          view.setInt16(offset, sample * 0x7FFF, true);
+          offset += 2;
+        }
+
+        const blob = new Blob([arrayBuffer], { type: 'audio/wav' });
+        return URL.createObjectURL(blob);
+      }
+    }
+    
+    class LevelIntroScene extends Phaser.Scene {
+      constructor() {
+        super({ key: 'LevelIntroScene' });
+      }
+      
+      create() {
+        const { width, height } = this.sys.game.config;
+        const levelIndex = gameProgress.currentLevel - 1;
+        const levelConfig = LEVELS[levelIndex];
+        
+        // Background color
+        this.cameras.main.setBackgroundColor(levelConfig.backgroundColor);
+        
+        // Level title
+        this.add.text(width / 2, height / 3, 'LEVEL ' + gameProgress.currentLevel, { 
+          fontSize: '32px', 
+          fill: '#fff',
+          fontStyle: 'bold'
+        }).setOrigin(0.5);
+        
+        // Level name
+        this.add.text(width / 2, height / 3 + 50, levelConfig.name, { 
+          fontSize: '24px', 
+          fill: '#fff' 
+        }).setOrigin(0.5);
+        
+        // Level description
+        this.add.text(width / 2, height / 3 + 90, levelConfig.description, { 
+          fontSize: '16px', 
+          fill: '#ddd' 
+        }).setOrigin(0.5);
+        
+        // Objective
+        this.add.text(width / 2, height / 3 + 130, 'Objective: Reach the top!', { 
+          fontSize: '18px', 
+          fill: '#fff' 
+        }).setOrigin(0.5);
+        
+        // High score
+        const highScore = gameProgress.getHighScore(gameProgress.currentLevel);
+        if (highScore > 0) {
+          this.add.text(width / 2, height / 3 + 160, 'Your Best: ' + highScore, { 
+            fontSize: '16px', 
+            fill: '#0f0' 
+          }).setOrigin(0.5);
+        }
+        
+        // Start button
+        const startButton = this.add.rectangle(width / 2, height * 2/3, 200, 60, levelConfig.platformColor, 0.8)
+          .setInteractive({ useHandCursor: true });
+        
+        this.add.text(width / 2, height * 2/3, 'START LEVEL', { 
+          fontSize: '20px', 
+          fill: '#fff' 
+        }).setOrigin(0.5);
+        
+        // Back button
+        const backButton = this.add.rectangle(width / 2, height * 2/3 + 80, 150, 40, 0x666666, 0.8)
+          .setInteractive({ useHandCursor: true });
+        
+        this.add.text(width / 2, height * 2/3 + 80, 'BACK TO MENU', { 
+          fontSize: '14px', 
+          fill: '#fff' 
+        }).setOrigin(0.5);
+        
+        // Button interactions
+        startButton.on('pointerdown', () => {
+          this.sound.add('menuSelect').play();
+          this.scene.start('PlayScene');
+        });
+        
+        backButton.on('pointerdown', () => {
+          this.sound.add('menuSelect').play();
+          this.scene.start('MainMenuScene');
+        });
+        
+        // Hover effects
+        startButton.on('pointerover', () => {
+          startButton.setFillStyle(levelConfig.platformColor, 1);
+        });
+        
+        startButton.on('pointerout', () => {
+          startButton.setFillStyle(levelConfig.platformColor, 0.8);
+        });
+        
+        backButton.on('pointerover', () => {
+          backButton.setFillStyle(0x666666, 1);
+        });
+        
+        backButton.on('pointerout', () => {
+          backButton.setFillStyle(0x666666, 0.8);
+        });
+        
+        
+      }
+    }
+
+    class PlayScene extends Phaser.Scene {
+      constructor() {
+        super({ key: 'PlayScene' });
+      }
+
+      create() {
+        // Get level configuration
+        const levelIndex = gameProgress.currentLevel - 1;
+        const levelConfig = LEVELS[levelIndex];
+        
+        // Initialize game variables
+        this.score = 0;
+        this.platforms = this.physics.add.staticGroup();
+        this.powerups = this.physics.add.group();
+        this.lastJumpTime = 0;
+        this.activePowerups = {};
+        this.powerupTimers = {};
+        this.canDoubleJump = false;
+        this.hasDoubleJumped = false;
+        this.platformGlitchMultiplier = 1;
+        this.platformStabilityActive = false;
+        this.speedMultiplier = 1;
+        this.jumpMultiplier = 1;
+        this.nextPowerupTime = 0;
+        this.levelComplete = false;
+        this.goalReached = false;
+
+        const { width, height } = this.sys.game.config;
+        const worldHeight = Math.max(levelConfig.goalHeight + 200, height * 3);
+
+        this.physics.world.setBounds(0, -worldHeight + height, width, worldHeight);
+        this.cameras.main.setBounds(0, -worldHeight + height, width, worldHeight);
+        this.cameras.main.setBackgroundColor(levelConfig.backgroundColor);
+
+        // Create audio objects
+        this.jumpSound = this.sound.add('jump', { volume: 0.6 });
+        this.glitchSound = this.sound.add('glitch', { volume: 0.4 });
+        this.bgMusic = this.sound.add('bgMusic', { volume: 0.3, loop: true });
+        this.powerupCollectSound = this.sound.add('powerupCollect', { volume: 0.5 });
+        this.powerupActivateSound = this.sound.add('powerupActivate', { volume: 0.5 });
+        this.powerupExpireSound = this.sound.add('powerupExpire', { volume: 0.4 });
+        this.levelCompleteSound = this.sound.add('levelComplete', { volume: 0.6 });
+        
+        audioManager.addSound('jump', this.jumpSound);
+        audioManager.addSound('glitch', this.glitchSound);
+        audioManager.addSound('bgMusic', this.bgMusic);
+        audioManager.addSound('powerupCollect', this.powerupCollectSound);
+        audioManager.addSound('powerupActivate', this.powerupActivateSound);
+        audioManager.addSound('powerupExpire', this.powerupExpireSound);
+        audioManager.addSound('levelComplete', this.levelCompleteSound);
+
+        this.bgMusic.play();
+
+        // Responsive background with level-specific color
+        this.bgGraphics = this.add.graphics();
+        for (let y = -worldHeight + height; y < height; y += 40) {
+          for (let x = 0; x < width; x += 40) {
+            if (Math.random() < 0.1) continue;
+            this.bgGraphics.fillStyle(levelConfig.backgroundLines, 0.1);
+            this.bgGraphics.fillRect(x, y, 2, 10);
+          }
+        }
+        this.bgGraphics.setScrollFactor(0);
+        
+        // Create goal line at the top
+        this.goalLine = this.add.rectangle(width / 2, -levelConfig.goalHeight + height, width, 10, 0xffffff, 0.8);
+        this.goalText = this.add.text(width / 2, -levelConfig.goalHeight + height - 20, 'GOAL', { 
+          fontSize: '24px', 
+          fill: '#fff',
+          stroke: '#000',
+          strokeThickness: 4
+        }).setOrigin(0.5);
+        
+        // Create platforms with level-specific spacing and size
+        const platformCount = levelConfig.platformCount;
+        const platformSpacing = levelConfig.platformSpacing;
+        
+        for (let i = 0; i < platformCount; i++) {
+          let x = Phaser.Math.Between(width * 0.1, width * 0.9);
+          let y = height - 50 - i * platformSpacing;
+          let platform = this.platforms.create(x, y, 'platform');
+          platform.setScale(Math.min(0.5, width / 1600) * levelConfig.platformSizeMultiplier).refreshBody();
+          platform.platformIndex = i;
+          platform.setTint(levelConfig.platformColor);
+          this.startGlitchTimer(platform, levelConfig);
+        }
+
+        this.player = this.physics.add.sprite(width / 2, height - 100, 'player');
+        this.player.setBounce(0.1);
+        this.player.setCollideWorldBounds(true);
+
+        this.cameras.main.startFollow(this.player, false, 0.1, 0.1);
+        this.physics.add.collider(this.player, this.platforms);
+        this.physics.add.overlap(this.player, this.powerups, this.collectPowerup, null, this);
+
+        this.cursors = this.input.keyboard.createCursorKeys();
+
+        // Responsive UI
+        const fontSize = DeviceUtils.getResponsiveFontSize(20);
+        
+        // Level indicator
+        this.levelText = this.add.text(width - 16, 16, 'Level ' + gameProgress.currentLevel, { 
+          fontSize: fontSize + 'px', 
+          fill: '#fff' 
+        }).setOrigin(1, 0);
+        this.levelText.setScrollFactor(0);
+        
+        // Score text
+        this.scoreText = this.add.text(16, 16, 'Platforms: 0', { 
+          fontSize: fontSize + 'px', 
+          fill: '#fff' 
+        });
+        this.scoreText.setScrollFactor(0);
+
+        this.audioText = this.add.text(16, 16 + fontSize + 5, '🔊 Audio: ON', { 
+          fontSize: (fontSize - 4) + 'px', 
+          fill: '#aaa' 
+        });
+        this.audioText.setScrollFactor(0);
+        
+        // Goal indicator
+        this.goalIndicator = this.add.text(width / 2, 16, 'Goal: 0%', { 
+          fontSize: fontSize + 'px', 
+          fill: '#fff' 
+        }).setOrigin(0.5, 0);
+        this.goalIndicator.setScrollFactor(0);
+        
+        // Goal progress bar
+        this.goalBarBg = this.add.rectangle(width / 2, 16 + fontSize + 5, width / 2, 10, 0x333333);
+        this.goalBarBg.setScrollFactor(0);
+        this.goalBar = this.add.rectangle(width / 2 - width / 4, 16 + fontSize + 5, 0, 10, 0xffffff);
+        this.goalBar.setOrigin(0, 0.5);
+        this.goalBar.setScrollFactor(0);
+        
+        // Power-up UI
+        this.powerupText = this.add.text(16, 16 + fontSize * 2, 'Power-ups:', { 
+          fontSize: (fontSize - 2) + 'px', 
+          fill: '#fff' 
+        });
+        this.powerupText.setScrollFactor(0);
+        
+        // Power-up icons container
+        this.powerupIcons = this.add.container(0, 0);
+        this.powerupIcons.setScrollFactor(0);
+        
+        // Pause button
+        this.pauseButton = this.add.rectangle(width - 30, height - 30, 40, 40, 0x333333, 0.8)
+          .setScrollFactor(0)
+          .setInteractive({ useHandCursor: true });
+        
+        this.pauseIcon = this.add.text(width - 30, height - 30, '⏸️', { 
+          fontSize: '20px', 
+          fill: '#fff' 
+        }).setOrigin(0.5).setScrollFactor(0);
+        
+        this.pauseButton.on('pointerdown', () => {
+          this.scene.pause();
+          this.scene.launch('PauseScene');
+        });
+
+        
+        
+        // Set physics gravity from level config
+        this.physics.world.gravity.y = levelConfig.gravity;
+        
+        // Schedule first power-up
+        this.nextPowerupTime = this.time.now + Phaser.Math.Between(2000, 5000);
+      }
+
+      update() {
+        // Skip update if level is complete
+        if (this.levelComplete) return;
+        
+        // Get level configuration
+        const levelIndex = gameProgress.currentLevel - 1;
+        const levelConfig = LEVELS[levelIndex];
+        
+        // Handle keyboard input
+        let leftPressed = this.cursors.left.isDown || touchControls.leftPressed;
+        let rightPressed = this.cursors.right.isDown || touchControls.rightPressed;
+        let jumpPressed = this.cursors.up.isDown || touchControls.jumpPressed;
+
+        // Apply speed boost if active
+        const moveSpeed = 160 * this.speedMultiplier;
+
+        if (leftPressed) {
+          this.player.setVelocityX(-moveSpeed);
+        } else if (rightPressed) {
+          this.player.setVelocityX(moveSpeed);
+        } else {
+          this.player.setVelocityX(0);
+        }
+
+        // Normal jump with level-specific jump force
+        if (jumpPressed && 
+            (this.player.body.blocked.down || this.player.body.touching.down) &&
+            this.time.now - this.lastJumpTime > 200) {
+          this.player.setVelocityY(-levelConfig.jumpForce * this.jumpMultiplier);
+          this.jumpSound.play();
+          this.lastJumpTime = this.time.now;
+          this.hasDoubleJumped = false;
+        }
+        
+        // Double jump
+        else if (jumpPressed && 
+                this.canDoubleJump && 
+                !this.hasDoubleJumped && 
+                !this.player.body.blocked.down && 
+                !this.player.body.touching.down &&
+                this.time.now - this.lastJumpTime > 300) {
+          this.player.setVelocityY(-levelConfig.jumpForce * 0.9 * this.jumpMultiplier);
+          this.jumpSound.play();
+          this.lastJumpTime = this.time.now;
+          this.hasDoubleJumped = true;
+          
+          // Add double jump effect
+          this.addJumpEffect();
+        }
+
+        // Score calculation
+        let currentPlatformIndex = -1;
+        this.platforms.children.iterate(platform => {
+          if (platform.active) {
+            let playerBottom = this.player.y + this.player.height / 2;
+            let platformTop = platform.y - platform.displayHeight / 2;
+            let playerLeft = this.player.x - this.player.width / 2;
+            let playerRight = this.player.x + this.player.width / 2;
+            let platformLeft = platform.x - platform.displayWidth / 2;
+            let platformRight = platform.x + platform.displayWidth / 2;
+
+            if (
+              playerBottom >= platformTop - 5 &&
+              playerBottom <= platformTop + 5 &&
+              playerRight > platformLeft &&
+              playerLeft < platformRight
+            ) {
+              currentPlatformIndex = Math.max(currentPlatformIndex, platform.platformIndex);
+            }
+          }
+        });
+
+        if (currentPlatformIndex !== -1) {
+          this.score = currentPlatformIndex + 1;
+        } else {
+          this.score = 0;
+        }
+        this.scoreText.setText('Platforms: ' + this.score);
+        this.audioText.setText(audioManager.isMuted ? '🔇 Audio: OFF' : '🔊 Audio: ON');
+        
+        // Update goal progress
+        const startY = this.sys.game.config.height - 100;
+        const goalY = -levelConfig.goalHeight + this.sys.game.config.height;
+        const totalDistance = startY - goalY;
+        const currentDistance = startY - this.player.y;
+        const progress = Math.min(100, Math.max(0, Math.floor((currentDistance / totalDistance) * 100)));
+        
+        this.goalIndicator.setText(`Goal: ${progress}%`);
+        this.goalBar.width = (this.sys.game.config.width / 2) * (progress / 100);
+        
+        // Check if player reached the goal
+        if (progress >= 100 && !this.goalReached) {
+          this.goalReached = true;
+          this.levelComplete = true;
+          this.levelCompleteSound.play();
+          this.showLevelComplete();
+        }
+
+        // Spawn power-ups periodically based on level config
+        if (this.time.now > this.nextPowerupTime) {
+          this.spawnPowerup(levelConfig);
+          this.nextPowerupTime = this.time.now + Phaser.Math.Between(levelConfig.powerupFrequency * 0.8, levelConfig.powerupFrequency * 1.2);
+        }
+
+        if (this.player.y > this.sys.game.config.height) {
+          this.bgMusic.stop();
+          this.scene.start('GameOverScene', { score: this.score });
+        }
+      }
+
+      startGlitchTimer(platform, levelConfig) {
+        this.time.addEvent({
+          delay: Phaser.Math.Between(levelConfig.glitchFrequencyMin, levelConfig.glitchFrequencyMax) * this.platformGlitchMultiplier,
+          loop: true,
+          callback: () => {
+            // Skip glitching if stability is active
+            if (this.platformStabilityActive) return;
+            
+            this.glitchSound.play();
+            
+            let flashCount = 0;
+            let flashEvent = this.time.addEvent({
+              delay: 100,
+              repeat: 6,
+              callback: () => {
+                platform.alpha = platform.alpha === 1 ? 0.3 : 1;
+                flashCount++;
+                if (flashCount > 6) {
+                  flashEvent.remove();
+                  platform.alpha = 1;
+                  platform.disableBody(true, true);
+                  this.time.delayedCall(500, () => {
+                    platform.enableBody(false, platform.x, platform.y, true, true);
+                    platform.setScale(Math.min(0.5, this.sys.game.config.width / 1600) * levelConfig.platformSizeMultiplier).refreshBody();
+                    platform.setTint(levelConfig.platformColor);
+                  });
+                }
+              }
+            });
+          }
+        });
+      }
+      
+      spawnPowerup(levelConfig) {
+        const { width, height } = this.sys.game.config;
+        
+        // Find a random active platform to place the power-up on
+        let activePlatforms = [];
+        this.platforms.children.iterate(platform => {
+          if (platform.active && platform.y < this.player.y) {
+            activePlatforms.push(platform);
+          }
+        });
+        
+        if (activePlatforms.length === 0) return;
+        
+        // Choose a random platform
+        const platform = Phaser.Utils.Array.GetRandom(activePlatforms);
+        
+        // Choose a random power-up type from level-specific available types
+        const availablePowerups = levelConfig.powerupTypes.map(type => type);
+        const powerupType = Phaser.Utils.Array.GetRandom(availablePowerups);
+        const powerupConfig = POWERUPS[powerupType];
+        
+        // Create power-up
+        const x = platform.x;
+        const y = platform.y - platform.height;
+        
+        const powerup = this.add.circle(x, y, 15, powerupConfig.color);
+        this.powerups.add(powerup);
+        this.physics.world.enable(powerup);
+        powerup.body.setAllowGravity(false);
+        
+        // Add icon text
+        const iconText = this.add.text(x, y, powerupConfig.icon, {
+          fontSize: '16px',
+          fill: '#fff'
+        }).setOrigin(0.5);
+        
+        // Store power-up type and reference to icon
+        powerup.powerupType = powerupType;
+        powerup.iconText = iconText;
+        
+        // Add floating animation
+        this.tweens.add({
+          targets: [powerup, iconText],
+          y: y - 10,
+          duration: 1000,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        });
+        
+        // Add glow effect
+        const glowGraphics = this.add.graphics();
+        powerup.glowGraphics = glowGraphics;
+        
+        this.tweens.add({
+          targets: powerup,
+          alpha: 0.7,
+          duration: 500,
+          yoyo: true,
+          repeat: -1,
+          onUpdate: () => {
+            glowGraphics.clear();
+            glowGraphics.fillStyle(powerupConfig.color, 0.3 * powerup.alpha);
+            glowGraphics.fillCircle(powerup.x, powerup.y, 25);
+          }
+        });
+        
+        // Auto-destroy after some time
+        this.time.delayedCall(10000, () => {
+          if (powerup.active) {
+            this.destroyPowerup(powerup);
+          }
+        });
+      }
+      
+      collectPowerup(player, powerup) {
+        // Play collect sound
+        this.powerupCollectSound.play();
+        
+        // Get power-up config
+        const powerupType = powerup.powerupType;
+        const powerupConfig = POWERUPS[powerupType];
+        
+        // Show collection message
+        const collectionText = this.add.text(powerup.x, powerup.y - 20, powerupConfig.name + '!', {
+          fontSize: '18px',
+          fill: '#fff',
+          stroke: '#000',
+          strokeThickness: 3
+        }).setOrigin(0.5);
+        
+        this.tweens.add({
+          targets: collectionText,
+          y: collectionText.y - 30,
+          alpha: 0,
+          duration: 1000,
+          onComplete: () => {
+            collectionText.destroy();
+          }
+        });
+        
+        // Activate power-up
+        this.activatePowerup(powerupType);
+        
+        // Destroy power-up
+        this.destroyPowerup(powerup);
+      }
+      
+      destroyPowerup(powerup) {
+        if (powerup.iconText) powerup.iconText.destroy();
+        if (powerup.glowGraphics) powerup.glowGraphics.destroy();
+        powerup.destroy();
+      }
+      
+      activatePowerup(powerupType) {
+        const powerupConfig = POWERUPS[powerupType];
+        
+        // Play activation sound
+        this.powerupActivateSound.play();
+        
+        // Apply power-up effect
+        switch (powerupType) {
+          case 'DOUBLE_JUMP':
+            this.canDoubleJump = true;
+            break;
+          case 'SLOW_MOTION':
+            this.platformGlitchMultiplier = 2; // Platforms glitch half as often
+            break;
+          case 'STABILITY':
+            this.platformStabilityActive = true;
+            break;
+          case 'SPEED_BOOST':
+            this.speedMultiplier = 1.5;
+            break;
+          case 'SUPER_JUMP':
+            this.jumpMultiplier = 1.5;
+            break;
+        }
+        
+        // Update UI
+        this.updatePowerupUI(powerupType, true);
+        
+        // Set timer to deactivate
+        if (this.powerupTimers[powerupType]) {
+          this.time.removeEvent(this.powerupTimers[powerupType]);
+        }
+        
+        this.activePowerups[powerupType] = true;
+        
+        this.powerupTimers[powerupType] = this.time.delayedCall(powerupConfig.duration, () => {
+          this.deactivatePowerup(powerupType);
+        });
+        
+        // Add visual effect to player
+        this.addPowerupEffect(powerupType);
+      }
+      
+      deactivatePowerup(powerupType) {
+        // Play expiration sound
+        this.powerupExpireSound.play();
+        
+        // Remove power-up effect
+        switch (powerupType) {
+          case 'DOUBLE_JUMP':
+            this.canDoubleJump = false;
+            this.hasDoubleJumped = false;
+            break;
+          case 'SLOW_MOTION':
+            this.platformGlitchMultiplier = 1;
+            break;
+          case 'STABILITY':
+            this.platformStabilityActive = false;
+            break;
+          case 'SPEED_BOOST':
+            this.speedMultiplier = 1;
+            break;
+          case 'SUPER_JUMP':
+            this.jumpMultiplier = 1;
+            break;
+        }
+        
+        // Update UI
+        this.updatePowerupUI(powerupType, false);
+        
+        this.activePowerups[powerupType] = false;
+      }
+      
+      updatePowerupUI(powerupType, isActive) {
+        const powerupConfig = POWERUPS[powerupType];
+        const { width, height } = this.sys.game.config;
+        const fontSize = DeviceUtils.getResponsiveFontSize(20);
+        
+        // Remove existing icon if present
+        this.powerupIcons.getAll().forEach(icon => {
+          if (icon.powerupType === powerupType) {
+            this.powerupIcons.remove(icon, true);
+          }
+        });
+        
+        // Add new icon if active
+        if (isActive) {
+          const iconY = 16 + fontSize * 3;
+          
+          // Count existing icons to position this one
+          const iconCount = this.powerupIcons.length;
+          const iconX = 16 + iconCount * 40;
+          
+          // Create icon background
+          const iconBg = this.add.circle(iconX + 15, iconY + 15, 15, powerupConfig.color, 0.7);
+          iconBg.powerupType = powerupType;
+          
+          // Create icon text
+          const iconText = this.add.text(iconX + 15, iconY + 15, powerupConfig.icon, {
+            fontSize: '16px',
+            fill: '#fff'
+          }).setOrigin(0.5);
+          
+          // Create timer bar
+          const timerBarBg = this.add.rectangle(iconX + 15, iconY + 35, 30, 5, 0x333333);
+          const timerBar = this.add.rectangle(iconX + 15, iconY + 35, 30, 5, 0xffffff);
+          timerBar.setOrigin(0.5, 0.5);
+          
+          // Group elements
+          const iconGroup = this.add.container(0, 0, [iconBg, iconText, timerBarBg, timerBar]);
+          iconGroup.powerupType = powerupType;
+          this.powerupIcons.add(iconGroup);
+          
+          // Animate timer bar
+          this.tweens.add({
+            targets: timerBar,
+            scaleX: 0,
+            duration: powerupConfig.duration,
+            ease: 'Linear'
+          });
+          
+          // Pulse effect when about to expire
+          this.time.delayedCall(powerupConfig.duration - 2000, () => {
+            if (iconGroup.active) {
+              this.tweens.add({
+                targets: [iconBg, iconText],
+                alpha: 0.5,
+                duration: 300,
+                yoyo: true,
+                repeat: 3
+              });
+            }
+          });
+        }
+      }
+      
+      addPowerupEffect(powerupType) {
+        const powerupConfig = POWERUPS[powerupType];
+        
+        // Create particle effect
+        const particles = this.add.particles(0, 0, 'platform', {
+          frame: 0,
+          color: [powerupConfig.color],
+          colorEase: 'quad.out',
+          lifespan: 1000,
+          scale: { start: 0.05, end: 0.01 },
+          speed: { min: 20, max: 40 },
+          quantity: 1,
+          blendMode: 'ADD',
+          emitting: false
+        });
+        
+        // Attach to player
+        particles.setPosition(this.player.x, this.player.y);
+        particles.startFollow(this.player);
+        
+        // Start emitting
+        particles.start();
+        
+        // Stop after duration
+        this.time.delayedCall(powerupConfig.duration, () => {
+          particles.stop();
+          this.time.delayedCall(1000, () => {
+            particles.destroy();
+          });
+        });
+      }
+      
+      addJumpEffect() {
+        // Create double jump effect
+        const particles = this.add.particles(0, 0, 'platform', {
+          frame: 0,
+          color: [0xffffff],
+          colorEase: 'quad.out',
+          lifespan: 500,
+          scale: { start: 0.1, end: 0.01 },
+          speed: { min: 50, max: 100 },
+          quantity: 15,
+          blendMode: 'ADD',
+          emitting: false
+        });
+        
+        particles.setPosition(this.player.x, this.player.y + 10);
+        particles.explode(15);
+        
+        this.time.delayedCall(500, () => {
+          particles.destroy();
+        });
+      }
+      
+      showLevelComplete() {
+        const { width, height } = this.sys.game.config;
+        
+        // Save high score
+        const isNewHighScore = gameProgress.setHighScore(gameProgress.currentLevel, this.score);
+        
+        // Unlock next level if available
+        let nextLevelUnlocked = false;
+        if (gameProgress.currentLevel < LEVELS.length) {
+          nextLevelUnlocked = gameProgress.unlockLevel(gameProgress.currentLevel + 1);
+        }
+        
+        // Create level complete overlay
+        const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.7)
+          .setOrigin(0)
+          .setScrollFactor(0);
+        
+        // Level complete text
+        const completeText = this.add.text(width / 2, height / 3, 'LEVEL COMPLETE!', { 
+          fontSize: '32px', 
+          fill: '#fff',
+          fontStyle: 'bold',
+          stroke: '#000',
+          strokeThickness: 6
+        }).setOrigin(0.5).setScrollFactor(0);
+        
+        // Score text
+        this.add.text(width / 2, height / 3 + 50, 'Score: ' + this.score, { 
+          fontSize: '24px', 
+          fill: '#fff' 
+        }).setOrigin(0.5).setScrollFactor(0);
+        
+        // High score text
+        if (isNewHighScore) {
+          const highScoreText = this.add.text(width / 2, height / 3 + 80, 'NEW HIGH SCORE!', { 
+            fontSize: '20px', 
+            fill: '#ffff00' 
+          }).setOrigin(0.5).setScrollFactor(0);
+          
+          // Animate high score text
+          this.tweens.add({
+            targets: highScoreText,
+            scale: 1.2,
+            duration: 500,
+            yoyo: true,
+            repeat: 3
+          });
+        }
+        
+        // Next level unlocked text
+        if (nextLevelUnlocked) {
+          const unlockText = this.add.text(width / 2, height / 3 + 110, 'LEVEL ' + (gameProgress.currentLevel + 1) + ' UNLOCKED!', { 
+            fontSize: '20px', 
+            fill: '#00ff00' 
+          }).setOrigin(0.5).setScrollFactor(0);
+          
+          // Animate unlock text
+          this.tweens.add({
+            targets: unlockText,
+            scale: 1.2,
+            duration: 500,
+            yoyo: true,
+            repeat: 3
+          });
+        }
+        
+        // Continue button
+        const continueButton = this.add.rectangle(width / 2, height * 2/3, 200, 60, 0x00ff00, 0.8)
+          .setInteractive({ useHandCursor: true })
+          .setScrollFactor(0);
+        
+        this.add.text(width / 2, height * 2/3, 'CONTINUE', { 
+          fontSize: '20px', 
+          fill: '#fff' 
+        }).setOrigin(0.5).setScrollFactor(0);
+        
+        // Button interactions
+        continueButton.on('pointerdown', () => {
+          this.sound.add('menuSelect').play();
+          this.bgMusic.stop();
+          this.scene.start('MainMenuScene');
+        });
+        
+        // Hover effects
+        continueButton.on('pointerover', () => {
+          continueButton.setFillStyle(0x00ff00, 1);
+        });
+        
+        continueButton.on('pointerout', () => {
+          continueButton.setFillStyle(0x00ff00, 0.8);
+        });
+        
+        // Animate level complete text
+        this.tweens.add({
+          targets: completeText,
+          y: completeText.y - 10,
+          duration: 1000,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        });
+        
+        // Add particles for celebration
+        const particles = this.add.particles(0, 0, 'platform', {
+          frame: 0,
+          color: [0xffff00, 0x00ff00, 0x00ffff, 0xff00ff],
+          colorEase: 'quad.out',
+          lifespan: 2000,
+          scale: { start: 0.1, end: 0 },
+          speed: { min: 50, max: 150 },
+          quantity: 2,
+          blendMode: 'ADD',
+          emitting: true,
+          emitZone: { type: 'random', source: new Phaser.Geom.Rectangle(0, 0, width, 100) }
+        });
+        
+        particles.setScrollFactor(0);
+        particles.setPosition(width / 2, height / 4);
+      }
+    }
+    
+    class PauseScene extends Phaser.Scene {
+      constructor() {
+        super({ key: 'PauseScene' });
+      }
+      
+      create() {
+        const { width, height } = this.sys.game.config;
+        
+        // Semi-transparent background
+        this.add.rectangle(0, 0, width, height, 0x000000, 0.7)
+          .setOrigin(0);
+        
+        // Pause text
+        this.add.text(width / 2, height / 3, 'GAME PAUSED', { 
+          fontSize: '32px', 
+          fill: '#fff',
+          fontStyle: 'bold'
+        }).setOrigin(0.5);
+        
+        // Resume button
+        const resumeButton = this.add.rectangle(width / 2, height / 2, 200, 60, 0x00ff00, 0.8)
+          .setInteractive({ useHandCursor: true });
+        
+        this.add.text(width / 2, height / 2, 'RESUME', { 
+          fontSize: '20px', 
+          fill: '#fff' 
+        }).setOrigin(0.5);
+        
+        // Restart button
+        const restartButton = this.add.rectangle(width / 2, height / 2 + 80, 200, 60, 0x0088ff, 0.8)
+          .setInteractive({ useHandCursor: true });
+        
+        this.add.text(width / 2, height / 2 + 80, 'RESTART LEVEL', { 
+          fontSize: '20px', 
+          fill: '#fff' 
+        }).setOrigin(0.5);
+        
+        // Menu button
+        const menuButton = this.add.rectangle(width / 2, height / 2 + 160, 200, 60, 0xff8800, 0.8)
+          .setInteractive({ useHandCursor: true });
+        
+        this.add.text(width / 2, height / 2 + 160, 'MAIN MENU', { 
+          fontSize: '20px', 
+          fill: '#fff' 
+        }).setOrigin(0.5);
+        
+        // Button interactions
+        resumeButton.on('pointerdown', () => {
+          this.sound.add('menuSelect').play();
+          this.scene.resume('PlayScene');
+          this.scene.stop();
+        });
+        
+        restartButton.on('pointerdown', () => {
+          this.sound.add('menuSelect').play();
+          this.scene.stop('PlayScene');
+          this.scene.start('PlayScene');
+        });
+        
+        menuButton.on('pointerdown', () => {
+          this.sound.add('menuSelect').play();
+          this.scene.stop('PlayScene');
+          this.scene.start('MainMenuScene');
+        });
+        
+        // Hover effects
+        resumeButton.on('pointerover', () => {
+          resumeButton.setFillStyle(0x00ff00, 1);
+        });
+        
+        resumeButton.on('pointerout', () => {
+          resumeButton.setFillStyle(0x00ff00, 0.8);
+        });
+        
+        restartButton.on('pointerover', () => {
+          restartButton.setFillStyle(0x0088ff, 1);
+        });
+        
+        restartButton.on('pointerout', () => {
+          restartButton.setFillStyle(0x0088ff, 0.8);
+        });
+        
+        menuButton.on('pointerover', () => {
+          menuButton.setFillStyle(0xff8800, 1);
+        });
+        
+        menuButton.on('pointerout', () => {
+          menuButton.setFillStyle(0xff8800, 0.8);
+        });
+        
+        // Add ESC key to resume
+        this.input.keyboard.on('keydown-ESC', () => {
+          this.scene.resume('PlayScene');
+          this.scene.stop();
+        });
+      }
+    }
+
+    class GameOverScene extends Phaser.Scene {
+      constructor() {
+        super({ key: 'GameOverScene' });
+      }
+
+      init(data) {
+        this.finalScore = data.score || 0;
+      }
+
+      create() {
+        const { width, height } = this.sys.game.config;
+        const levelIndex = gameProgress.currentLevel - 1;
+        const levelConfig = LEVELS[levelIndex];
+        
+        // Set background color based on level
+        this.cameras.main.setBackgroundColor(levelConfig.backgroundColor);
+        
+        this.menuSelectSound = this.sound.add('menuSelect', { volume: 0.5 });
+        audioManager.addSound('menuSelectGameOver', this.menuSelectSound);
+
+        const titleSize = DeviceUtils.getResponsiveFontSize(32);
+        const scoreSize = DeviceUtils.getResponsiveFontSize(24);
+        const instructionSize = DeviceUtils.getResponsiveFontSize(20);
+
+        this.add.text(width / 2, height / 3, 'GAME OVER', { 
+          fontSize: titleSize + 'px', 
+          fill: '#fff',
+          fontStyle: 'bold',
+          stroke: '#000',
+          strokeThickness: 6
+        }).setOrigin(0.5);
+        
+        this.add.text(width / 2, height / 3 + 50, 'Level ' + gameProgress.currentLevel + ': ' + levelConfig.name, { 
+          fontSize: scoreSize - 4 + 'px', 
+          fill: '#ddd' 
+        }).setOrigin(0.5);
+        
+        this.add.text(width / 2, height / 3 + 90, 'Score: ' + this.finalScore, { 
+          fontSize: scoreSize + 'px', 
+          fill: '#fff' 
+        }).setOrigin(0.5);
+        
+        // High score
+        const highScore = gameProgress.getHighScore(gameProgress.currentLevel);
+        if (highScore > 0) {
+          this.add.text(width / 2, height / 3 + 130, 'Best: ' + highScore, { 
+            fontSize: scoreSize - 4 + 'px', 
+            fill: '#0f0' 
+          }).setOrigin(0.5);
+        }
+        
+        // Retry button
+        const retryButton = this.add.rectangle(width / 2, height * 2/3, 200, 60, levelConfig.platformColor, 0.8)
+          .setInteractive({ useHandCursor: true });
+        
+        this.add.text(width / 2, height * 2/3, 'RETRY LEVEL', { 
+          fontSize: instructionSize + 'px', 
+          fill: '#fff' 
+        }).setOrigin(0.5);
+        
+        // Menu button
+        const menuButton = this.add.rectangle(width / 2, height * 2/3 + 80, 200, 60, 0x666666, 0.8)
+          .setInteractive({ useHandCursor: true });
+        
+        this.add.text(width / 2, height * 2/3 + 80, 'MAIN MENU', { 
+          fontSize: instructionSize + 'px', 
+          fill: '#fff' 
+        }).setOrigin(0.5);
+        
+        // Button interactions
+        retryButton.on('pointerdown', () => {
+          this.menuSelectSound.play();
+          this.scene.start('PlayScene');
+        });
+        
+        menuButton.on('pointerdown', () => {
+          this.menuSelectSound.play();
+          this.scene.start('MainMenuScene');
+        });
+        
+        // Hover effects
+        retryButton.on('pointerover', () => {
+          retryButton.setFillStyle(levelConfig.platformColor, 1);
+        });
+        
+        retryButton.on('pointerout', () => {
+          retryButton.setFillStyle(levelConfig.platformColor, 0.8);
+        });
+        
+        menuButton.on('pointerover', () => {
+          menuButton.setFillStyle(0x666666, 1);
+        });
+        
+        menuButton.on('pointerout', () => {
+          menuButton.setFillStyle(0x666666, 0.8);
+        });
+
+        
+      }
+    }
+
+    // Enhanced orientation and resize handling
+    function checkOrientation() {
+      const orientationMessage = document.getElementById('orientationMessage');
+      const device = DeviceUtils.getDeviceType();
+      
+      // Only show orientation message for small mobile devices in portrait
+      if (device.type === 'mobile' && !DeviceUtils.isLandscape() && window.innerWidth < 600) {
+        orientationMessage.classList.add('show');
+        if (gameInstance) {
+          gameInstance.scene.pause();
+        }
+      } else {
+        orientationMessage.classList.remove('show');
+        if (gameInstance) {
+          gameInstance.scene.resume();
+        }
+      }
+    }
+
+    function handleResize() {
+      if (gameInstance) {
+        const size = DeviceUtils.getOptimalSize();
+        gameInstance.scale.resize(size.width, size.height);
+        
+        // Update touch controls for new size
+        if (touchControls) {
+          touchControls.updateForResize();
+        }
+      }
+      checkOrientation();
+    }
+
+    // Initialize game with enhanced device detection
+    function initGame() {
+      const size = DeviceUtils.getOptimalSize();
+      
+      const config = {
+        type: Phaser.AUTO,
+        width: size.width,
+        height: size.height,
+        parent: 'game-container',
+        physics: {
+          default: 'arcade',
+          arcade: {
+            gravity: { y: 600 },
+            debug: false
+          }
+        },
+        scene: [MainMenuScene, LevelIntroScene, PlayScene, GameOverScene, PauseScene],
+        scale: {
+          mode: Phaser.Scale.FIT,
+          autoCenter: Phaser.Scale.CENTER_BOTH,
+          expandParent: false,
+          fullscreenTarget: 'game-container'
+        },
+        render: {
+          antialias: true,
+          pixelArt: false
+        }
+      };
+
+      gameInstance = new Phaser.Game(config);
+      
+      checkOrientation();
+      
+      // Log device info for debugging
+      console.log('Device detected:', size.device);
+      console.log('Game size:', size.width + 'x' + size.height);
+    }
+
+    // Event listeners
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', () => {
+      setTimeout(handleResize, 100);
+    });
+
+    // Prevent default touch behaviors
+    document.addEventListener('touchstart', (e) => {
+      if (e.target.closest('.mobile-controls') || e.target.closest('.audio-controls')) {
+        return;
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+    }, { passive: false });
+
+    // Initialize touch controls after DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+      touchControls = new TouchControls();
+      
+      const muteBtn = document.getElementById('muteBtn');
+      const volumeSlider = document.getElementById('volumeSlider');
+      const volumeLabel = document.getElementById('volumeLabel');
+
+      muteBtn.addEventListener('click', () => {
+        const isMuted = audioManager.toggleMute();
+        muteBtn.textContent = isMuted ? '🔇' : '🔊';
+      });
+
+      volumeSlider.addEventListener('input', (e) => {
+        const volume = e.target.value / 100;
+        audioManager.setMasterVolume(volume);
+        volumeLabel.textContent = `${e.target.value}%`;
+      });
+
+      // Initialize game after DOM is ready
+      initGame();
+    });
+  </script>
+</body>
+</html>
